@@ -45,11 +45,12 @@ namespace WindowsFormsDemo
         private Type Renderer { get; set; }
         private bool TryMultipleBarcodes { get; set; }
         private bool TryOnlyMultipleQRCodes { get; set; }
+        private bool UseGlobalHistogramBinarizer { get; set; }
 
         public WindowsFormsDemoForm()
         {
             InitializeComponent();
-            barcodeReader = new BarcodeReader
+            barcodeReader = new BarcodeReader(null, null, source => UseGlobalHistogramBinarizer ? new GlobalHistogramBinarizer(source) : new HybridBinarizer(source))
             {
                 AutoRotate = true,
                 TryInverted = true,
@@ -66,6 +67,10 @@ namespace WindowsFormsDemo
             {
                 txtType.Text = result.BarcodeFormat.ToString();
                 txtContent.Text += result.Text + Environment.NewLine;
+                if (result.ResultMetadata.ContainsKey(ResultMetadataType.UPC_EAN_EXTENSION))
+                {
+                    txtContent.Text += " UPC/EAN Extension: " + result.ResultMetadata[ResultMetadataType.UPC_EAN_EXTENSION].ToString();
+                }
                 lastResults.Add(result);
                 var parsedResult = ResultParser.parseResult(result);
                 if (parsedResult != null)
@@ -449,6 +454,7 @@ namespace WindowsFormsDemo
                 {
                     TryMultipleBarcodes = dlg.MultipleBarcodes;
                     TryOnlyMultipleQRCodes = dlg.MultipleBarcodesOnlyQR;
+                    UseGlobalHistogramBinarizer = dlg.UseGlobalHistogramBinarizer;
                 }
             }
         }

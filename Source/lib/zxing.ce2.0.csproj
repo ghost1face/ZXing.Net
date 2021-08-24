@@ -301,7 +301,9 @@
     <Compile Include="pdf417\encoder\PDF417EncodingOptions.cs" />
     <Compile Include="pdf417\encoder\PDF417ErrorCorrection.cs" />
     <Compile Include="pdf417\encoder\PDF417HighLevelEncoder.cs" />
+    <Compile Include="pdf417\encoder\PDF417OptionalMacroFields.cs" />
     <Compile Include="pdf417\PDF417Common.cs" />
+    <Compile Include="pdf417\PDF417MacroMetadata.cs" />
     <Compile Include="pdf417\PDF417Reader.cs" />
     <Compile Include="pdf417\PDF417ResultMetadata.cs" />
     <Compile Include="pdf417\PDF417Writer.cs" />
@@ -334,6 +336,7 @@
     <Compile Include="qrcode\QRCodeWriter.cs" />
     <Compile Include="Reader.cs" />
     <Compile Include="ReaderException.cs" />
+    <Compile Include="renderer\AlternateBitmapRenderer.cs" />
     <Compile Include="renderer\BitmapRenderer.cs" />
     <Compile Include="renderer\IBarcodeRenderer.cs" />
     <Compile Include="renderer\PixelData.Bitmap.NetCE.cs" />
