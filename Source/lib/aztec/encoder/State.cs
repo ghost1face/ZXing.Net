@@ -47,12 +47,6 @@ namespace ZXing.Aztec.Internal
             this.mode = mode;
             this.binaryShiftByteCount = binaryBytes;
             this.bitCount = bitCount;
-            // Make sure we match the token
-            //int binaryShiftBitCount = (binaryShiftByteCount * 8) +
-            //    (binaryShiftByteCount == 0 ? 0 :
-            //     binaryShiftByteCount <= 31 ? 10 :
-            //     binaryShiftByteCount <= 62 ? 20 : 21);
-            //assert this.bitCount == token.getTotalBitCount() + binaryShiftBitCount;
         }
 
         public int Mode
@@ -73,6 +67,32 @@ namespace ZXing.Aztec.Internal
         public int BitCount
         {
             get { return bitCount; }
+        }
+
+        public State appendFLGn(int eci)
+        {
+            State result = shiftAndAppend(HighLevelEncoder.MODE_PUNCT, 0); // 0: FLG(n)
+            Token token = result.token;
+            int bitsAdded = 3;
+            if (eci < 0)
+            {
+                token = token.add(0, 3); // 0: FNC1
+            }
+            else if (eci > 999999)
+            {
+                throw new ArgumentException("ECI code must be between 0 and 999999");
+            }
+            else
+            {
+                byte[] eciDigits = AztecWriter.DEFAULT_CHARSET.GetBytes(eci.ToString());
+                token = token.add(eciDigits.Length, 3); // 1-6: number of ECI digits
+                for (int ii = 0; ii < eciDigits.Length; ii++)
+                {
+                    token = token.add(eciDigits[ii] - '0' + 2, 4);
+                }
+                bitsAdded += eciDigits.Length * 4;
+            }
+            return new State(token, mode, 0, bitCount + bitsAdded);
         }
 
         /// <summary>
