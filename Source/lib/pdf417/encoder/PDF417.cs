@@ -800,9 +800,41 @@ namespace ZXing.PDF417.Internal
             sourceCodeWords += segmentIndex.Length;
 
             // File Id
-            string fileId = PDF417HighLevelEncoder.encodeHighLevel(this.metadata.FileId, Compaction.TEXT, encoding, disableEci);
-            macroCodewords.Append(fileId);
-            sourceCodeWords += fileId.Length;
+            if (!string.IsNullOrEmpty(this.metadata.FileId))
+            {
+                var isEncodedAsCodewords = false;
+                if (this.metadata.FileId.Length > 2 && ((this.metadata.FileId.Length % 3 == 0)))
+                {
+                    isEncodedAsCodewords = true;
+                    var codewordCount = 0;
+                    for (var index = 0; index < metadata.FileId.Length && isEncodedAsCodewords; index += 3)
+                    {
+                        int fileIdInt;
+                        if (Int32.TryParse(this.metadata.FileId.Substring(index, 3), out fileIdInt) && fileIdInt >= 0 && fileIdInt <= 899)
+                        {
+                            macroCodewords.Append((char)fileIdInt);
+                            sourceCodeWords += 1;
+                            codewordCount++;
+                        }
+                        else
+                        {
+                            isEncodedAsCodewords = false;
+                        }
+                    }
+                    if (!isEncodedAsCodewords)
+                    {
+                        macroCodewords.Length -= codewordCount;
+                        sourceCodeWords -= codewordCount;
+                    }
+                }
+                if (!isEncodedAsCodewords)
+                {
+                    // wrong encodation, but for compatibility
+                    string fileId = PDF417HighLevelEncoder.encodeHighLevel(this.metadata.FileId, Compaction.TEXT, encoding, disableEci);
+                    macroCodewords.Append(fileId);
+                    sourceCodeWords += fileId.Length;
+                }
+            }
 
             // Optional file name
             if (!(string.IsNullOrEmpty(this.metadata.FileName) || this.metadata.FileName.Trim().Length == 0))
@@ -1055,20 +1087,7 @@ namespace ZXing.PDF417.Internal
         /// <param name="encodingname">sets character encoding to use</param>
         internal void setEncoding(String encodingname)
         {
-#if WindowsCE
-         try
-         {
             this.encoding = Encoding.GetEncoding(encodingname);
-         }
-         catch (PlatformNotSupportedException)
-         {
-            // WindowsCE doesn't support all encodings. But it is device depended.
-            // So we try here the some different ones
-            this.encoding = Encoding.GetEncoding(1252);
-         }
-#else
-            this.encoding = Encoding.GetEncoding(encodingname);
-#endif
         }
 
         /// <summary>

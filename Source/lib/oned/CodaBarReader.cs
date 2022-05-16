@@ -187,7 +187,7 @@ namespace ZXing.OneD
                 resultPointCallback(new ResultPoint(right, rowNumber));
             }
 
-            return new Result(
+            var result = new Result(
                decodeRowResult.ToString(),
                null,
                new[]
@@ -196,6 +196,8 @@ namespace ZXing.OneD
                   new ResultPoint(right, rowNumber)
                   },
                BarcodeFormat.CODABAR);
+            result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, "]F0");
+            return result;
         }
 
         private bool validatePattern(int start)
@@ -208,7 +210,7 @@ namespace ZXing.OneD
             // We break out of this loop in the middle, in order to handle
             // inter-character spaces properly.
             int pos = start;
-            for (int i = 0; true; i++)
+            for (int i = 0; i <= end; i++)
             {
                 int pattern = CHARACTER_ENCODINGS[decodeRowResult[i]];
                 for (int j = 6; j >= 0; j--)
@@ -219,10 +221,6 @@ namespace ZXing.OneD
                     sizes[category] += counters[pos + j];
                     counts[category]++;
                     pattern >>= 1;
-                }
-                if (i >= end)
-                {
-                    break;
                 }
                 // We ignore the inter-character space - it could be of any size.
                 pos += 8;
@@ -245,7 +243,7 @@ namespace ZXing.OneD
 
             // Now verify that all of the stripes are within the thresholds.
             pos = start;
-            for (int i = 0; true; i++)
+            for (int i = 0; i <= end; i++)
             {
                 int pattern = CHARACTER_ENCODINGS[decodeRowResult[i]];
                 for (int j = 6; j >= 0; j--)
@@ -259,10 +257,6 @@ namespace ZXing.OneD
                         return false;
                     }
                     pattern >>= 1;
-                }
-                if (i >= end)
-                {
-                    break;
                 }
                 pos += 8;
             }

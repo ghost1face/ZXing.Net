@@ -116,7 +116,7 @@ namespace ZXing.Maxicode
             BitMatrix bits = new BitMatrix(MATRIX_WIDTH, MATRIX_HEIGHT);
             for (int y = 0; y < MATRIX_HEIGHT; y++)
             {
-                int iy = top + (y * height + height / 2) / MATRIX_HEIGHT;
+                int iy = System.Math.Min(top + (y * height + height / 2) / MATRIX_HEIGHT, height);
                 for (int x = 0; x < MATRIX_WIDTH; x++)
                 {
                     // srowen: I don't quite understand why the formula below is necessary, but it

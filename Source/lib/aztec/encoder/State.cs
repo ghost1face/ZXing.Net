@@ -40,6 +40,7 @@ namespace ZXing.Aztec.Internal
         private readonly int binaryShiftByteCount;
         // The total number of bits generated (including Binary Shift).
         private readonly int bitCount;
+        private readonly int binaryShiftCost;
 
         public State(Token token, int mode, int binaryBytes, int bitCount)
         {
@@ -47,6 +48,7 @@ namespace ZXing.Aztec.Internal
             this.mode = mode;
             this.binaryShiftByteCount = binaryBytes;
             this.bitCount = bitCount;
+            this.binaryShiftCost = calculateBinaryShiftCost(binaryBytes);
         }
 
         public int Mode
@@ -101,7 +103,6 @@ namespace ZXing.Aztec.Internal
         /// </summary>
         public State latchAndAppend(int mode, int value)
         {
-            //assert binaryShiftByteCount == 0;
             int bitCount = this.bitCount;
             Token token = this.token;
             if (mode != this.mode)
@@ -121,7 +122,6 @@ namespace ZXing.Aztec.Internal
         /// </summary>
         public State shiftAndAppend(int mode, int value)
         {
-            //assert binaryShiftByteCount == 0 && this.mode != mode;
             Token token = this.token;
             int thisModeBitCount = this.mode == HighLevelEncoder.MODE_DIGIT ? 4 : 5;
             // Shifts exist only to UPPER and PUNCT, both with tokens size 5.
@@ -141,7 +141,6 @@ namespace ZXing.Aztec.Internal
             int bitCount = this.bitCount;
             if (this.mode == HighLevelEncoder.MODE_PUNCT || this.mode == HighLevelEncoder.MODE_DIGIT)
             {
-                //assert binaryShiftByteCount == 0;
                 int latch = HighLevelEncoder.LATCH_TABLE[mode][HighLevelEncoder.MODE_UPPER];
                 token = token.add(latch & 0xFFFF, latch >> 16);
                 bitCount += latch >> 16;
@@ -171,7 +170,6 @@ namespace ZXing.Aztec.Internal
             }
             Token token = this.token;
             token = token.addBinaryShift(index - binaryShiftByteCount, binaryShiftByteCount);
-            //assert token.getTotalBitCount() == this.bitCount;
             return new State(token, mode, 0, this.bitCount);
         }
 
@@ -185,7 +183,7 @@ namespace ZXing.Aztec.Internal
             if (this.binaryShiftByteCount < other.binaryShiftByteCount)
             {
                 // add additional B/S encoding cost of other, if any
-                newModeBitCount += calculateBinaryShiftCost(other) - calculateBinaryShiftCost(this);
+                newModeBitCount += other.binaryShiftCost - this.binaryShiftCost;
             }
             else if (this.binaryShiftByteCount > other.binaryShiftByteCount && other.binaryShiftByteCount > 0)
             {
@@ -197,20 +195,17 @@ namespace ZXing.Aztec.Internal
 
         public BitArray toBitArray(byte[] text)
         {
-            // Reverse the tokens, so that they are in the order that they should
-            // be output
-            var symbols = new LinkedList<Token>();
+            var symbols = new List<Token>();
             for (Token token = endBinaryShift(text.Length).token; token != null; token = token.Previous)
             {
-                symbols.AddFirst(token);
+                symbols.Add(token);
             }
-            BitArray bitArray = new BitArray();
-            // Add each token to the result.
-            foreach (Token symbol in symbols)
+            var bitArray = new BitArray();
+            // Add each token to the result in forward order
+            for (int i = symbols.Count - 1; i >= 0; i--)
             {
-                symbol.appendTo(bitArray, text);
+                symbols[i].appendTo(bitArray, text);
             }
-            //assert bitArray.getSize() == this.bitCount;
             return bitArray;
         }
 
@@ -219,17 +214,17 @@ namespace ZXing.Aztec.Internal
             return String.Format("{0} bits={1} bytes={2}", HighLevelEncoder.MODE_NAMES[mode], bitCount, binaryShiftByteCount);
         }
 
-        private static int calculateBinaryShiftCost(State state)
+        private static int calculateBinaryShiftCost(int binaryShiftByteCount)
         {
-            if (state.binaryShiftByteCount > 62)
+            if (binaryShiftByteCount > 62)
             {
                 return 21; // B/S with extended length
             }
-            if (state.binaryShiftByteCount > 31)
+            if (binaryShiftByteCount > 31)
             {
                 return 20; // two B/S
             }
-            if (state.binaryShiftByteCount > 0)
+            if (binaryShiftByteCount > 0)
             {
                 return 10; // one B/S
             }

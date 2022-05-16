@@ -17,7 +17,7 @@
 using System;
 using System.Text;
 
-#if (SILVERLIGHT4 || SILVERLIGHT5 || NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
+#if (NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
 using System.Numerics;
 #else
 using BigIntegerLibrary;
@@ -77,7 +77,7 @@ namespace ZXing.PDF417.Internal
 
         private static readonly char[] MIXED_CHARS = "0123456789&\r\t,:#-.$/+%*=^".ToCharArray();
 
-#if (SILVERLIGHT4 || SILVERLIGHT5 || NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
+#if (NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
       /// <summary>
       /// Table containing values for the exponent of 900.
       /// This is used in the numeric compaction decode algorithm.
@@ -143,8 +143,13 @@ namespace ZXing.PDF417.Internal
                         codeIndex = numericCompaction(codewords, codeIndex, result);
                         break;
                     case ECI_CHARSET:
-                        var charsetECI = CharacterSetECI.getCharacterSetECIByValue(codewords[codeIndex++]);
-                        encoding = CharacterSetECI.getEncoding(charsetECI.EncodingName);
+                        var eci = codewords[codeIndex++];
+                        var charsetECI = CharacterSetECI.getCharacterSetECIByValue(eci);
+                        encoding = CharacterSetECI.getEncoding(charsetECI);
+                        if (encoding == null)
+                        {
+                            throw new FormatException("Encoding for ECI " + eci + " can't be resolved");
+                        }
                         break;
                     case ECI_GENERAL_PURPOSE:
                         // Can't do anything with generic ECI; skip its 2 characters
@@ -181,7 +186,7 @@ namespace ZXing.PDF417.Internal
                 }
             }
 
-            if (result.Length == 0)
+            if (result.Length == 0 && resultMetadata.FileId == null)
             {
                 return null;
             }
@@ -203,13 +208,43 @@ namespace ZXing.PDF417.Internal
             {
                 segmentIndexArray[i] = codewords[codeIndex];
             }
-            var s = decodeBase900toBase10(segmentIndexArray, NUMBER_OF_SEQUENCE_CODEWORDS);
-            if (s == null)
+            var segmentIndexString = decodeBase900toBase10(segmentIndexArray, NUMBER_OF_SEQUENCE_CODEWORDS);
+            if (segmentIndexString == null)
                 return -1;
-            resultMetadata.SegmentIndex = Int32.Parse(s);
+            if (string.IsNullOrEmpty(segmentIndexString))
+            {
+                resultMetadata.SegmentIndex = 0;
+            }
+            else
+            {
+                try
+                {
+                    resultMetadata.SegmentIndex = Int32.Parse(segmentIndexString);
+                }
+                catch (Exception )
+                {
+                    // too large; bad input?
+                    return -1;
+                }
+            }
 
+            // Decoding the fileId codewords as 0-899 numbers, each 0-filled to width 3. This follows the spec
+            // (See ISO/IEC 15438:2015 Annex H.6) and preserves all info, but some generators (e.g. TEC-IT) write
+            // the fileId using text compaction, so in those cases the fileId will appear mangled.
             var fileId = new StringBuilder();
-            codeIndex = textCompaction(codewords, codeIndex, fileId);
+            while (codeIndex < codewords[0] &&
+                   codeIndex < codewords.Length &&
+                   codewords[codeIndex] != MACRO_PDF417_TERMINATOR &&
+                   codewords[codeIndex] != BEGIN_MACRO_PDF417_OPTIONAL_FIELD)
+            {
+                fileId.Append(codewords[codeIndex].ToString("D3"));
+                codeIndex++;
+            }
+            if (fileId.Length == 0)
+            {
+                // at least one fileId codeword is required (Annex H.2)
+                return -1;
+            }
             resultMetadata.FileId = fileId.ToString();
 
             int optionalFieldsStart = -1;
@@ -245,56 +280,36 @@ namespace ZXing.PDF417.Internal
                                 {
                                     var segmentCount = new StringBuilder();
                                     codeIndex = numericCompaction(codewords, codeIndex + 1, segmentCount);
-#if WindowsCE
-                           try { resultMetadata.SegmentCount = Int32.Parse(segmentCount.ToString()); }
-                           catch { }
-#else
                                     int intResult;
                                     if (Int32.TryParse(segmentCount.ToString(), out intResult))
                                         resultMetadata.SegmentCount = intResult;
-#endif
                                 }
                                 break;
                             case MACRO_PDF417_OPTIONAL_FIELD_TIME_STAMP:
                                 {
                                     var timestamp = new StringBuilder();
                                     codeIndex = numericCompaction(codewords, codeIndex + 1, timestamp);
-#if WindowsCE
-                           try { resultMetadata.Timestamp = Int64.Parse(timestamp.ToString()); }
-                           catch { }
-#else
                                     long longResult;
                                     if (Int64.TryParse(timestamp.ToString(), out longResult))
                                         resultMetadata.Timestamp = longResult;
-#endif
                                 }
                                 break;
                             case MACRO_PDF417_OPTIONAL_FIELD_CHECKSUM:
                                 {
                                     var checksum = new StringBuilder();
                                     codeIndex = numericCompaction(codewords, codeIndex + 1, checksum);
-#if WindowsCE
-                           try { resultMetadata.Checksum = Int32.Parse(checksum.ToString()); }
-                           catch { }
-#else
                                     int intResult;
                                     if (Int32.TryParse(checksum.ToString(), out intResult))
                                         resultMetadata.Checksum = intResult;
-#endif
                                 }
                                 break;
                             case MACRO_PDF417_OPTIONAL_FIELD_FILE_SIZE:
                                 {
                                     var fileSize = new StringBuilder();
                                     codeIndex = numericCompaction(codewords, codeIndex + 1, fileSize);
-#if WindowsCE
-                           try { resultMetadata.FileSize = Int64.Parse(fileSize.ToString()); }
-                           catch { }
-#else
                                     long longResult;
                                     if (Int64.TryParse(fileSize.ToString(), out longResult))
                                         resultMetadata.FileSize = longResult;
-#endif
                                 }
                                 break;
                             default:
@@ -831,7 +846,7 @@ namespace ZXing.PDF417.Internal
         /// </summary>
         private static String decodeBase900toBase10(int[] codewords, int count)
         {
-#if (SILVERLIGHT4 || SILVERLIGHT5 || NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
+#if (NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
          BigInteger result = BigInteger.Zero;
          for (int i = 0; i < count; i++)
          {

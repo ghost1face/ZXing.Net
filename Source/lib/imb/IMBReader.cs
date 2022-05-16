@@ -16,7 +16,7 @@
 
 using System;
 using System.Collections.Generic;
-#if (SILVERLIGHT4 || SILVERLIGHT5 || NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
+#if (NET40 || NET45 || NET46 || NET47 || NET48 || NETFX_CORE || NETSTANDARD) && !NETSTANDARD1_0
 using System.Numerics;
 #else
 using BigIntegerLibrary;
@@ -477,14 +477,22 @@ namespace ZXing.IMB
                     return null;
                 rowNumberTop--;
                 topRow = currentBitmap.getBlackRow(rowNumberTop, topRow);
-            } while (getNumberBars(topRow, pixelStartOffset, pixelStopOffset, pixelBarLength) >= NUM_BARS_IMB);
+                if (topRow == null)
+                    continue;
+                if (getNumberBars(topRow, pixelStartOffset, pixelStopOffset, pixelBarLength) >= NUM_BARS_IMB)
+                    break;
+            } while (true);
             do
             {
                 if (rowNumberBot >= (currentBitmap.Height - 1))
                     return null;
                 rowNumberBot++;
                 botRow = currentBitmap.getBlackRow(rowNumberBot, botRow);
-            } while (getNumberBars(botRow, pixelStartOffset, pixelStopOffset, pixelBarLength) >= NUM_BARS_IMB);
+                if (botRow == null)
+                    continue;
+                if (getNumberBars(botRow, pixelStartOffset, pixelStopOffset, pixelBarLength) >= NUM_BARS_IMB)
+                    break;
+            } while (true);
 
             List<int> listRow = new List<int>();
             List<int> listTop = new List<int>();

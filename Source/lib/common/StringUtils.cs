@@ -27,20 +27,31 @@ namespace ZXing.Common
     /// <author>Alex Dupre</author>
     public static class StringUtils
     {
-#if (WINDOWS_PHONE || SILVERLIGHT4 || SILVERLIGHT5 || NETFX_CORE || PORTABLE || NETSTANDARD)
-        public static readonly String PLATFORM_DEFAULT_ENCODING = UTF8;
-        public static readonly Encoding PLATFORM_DEFAULT_ENCODING_T = Encoding.UTF8;
-#else
-        public static readonly String PLATFORM_DEFAULT_ENCODING = Encoding.Default.WebName.ToUpper();
-        public static readonly Encoding PLATFORM_DEFAULT_ENCODING_T = Encoding.Default;
-#endif
-        public static readonly Encoding SHIFT_JIS_ENCODING = CharacterSetECI.getEncoding(SHIFT_JIS);
-        public static readonly Encoding GB2312_ENCODING = CharacterSetECI.getEncoding(GB2312);
-        public static readonly Encoding EUC_JP_ENCODING = CharacterSetECI.getEncoding(EUC_JP);
-        public static readonly Encoding ISO88591_ENCODING = CharacterSetECI.getEncoding(ISO88591);
-        private static readonly bool ASSUME_SHIFT_JIS =
-            SHIFT_JIS_ENCODING.Equals(PLATFORM_DEFAULT_ENCODING_T) ||
-            EUC_JP_ENCODING.Equals(PLATFORM_DEFAULT_ENCODING_T);
+        /// <summary>
+        /// default encoding of the current platform (name)
+        /// </summary>
+        public static readonly String PLATFORM_DEFAULT_ENCODING;
+        /// <summary>
+        /// default encoding of the current platform (type)
+        /// </summary>
+        public static readonly Encoding PLATFORM_DEFAULT_ENCODING_T;
+        /// <summary>
+        /// Shift JIS encoding if available
+        /// </summary>
+        public static readonly Encoding SHIFT_JIS_ENCODING;
+        /// <summary>
+        /// GB 2312 encoding if available
+        /// </summary>
+        public static readonly Encoding GB2312_ENCODING;
+        /// <summary>
+        /// ECU JP encoding if available
+        /// </summary>
+        public static readonly Encoding EUC_JP_ENCODING;
+        /// <summary>
+        /// ISO8859-1 encoding if available
+        /// </summary>
+        public static readonly Encoding ISO88591_ENCODING;
+        private static readonly bool ASSUME_SHIFT_JIS;
 
         // Retained for ABI compatibility with earlier versions
         /// <summary>
@@ -51,9 +62,36 @@ namespace ZXing.Common
         /// GB2312
         /// </summary>
         public const String GB2312 = "GB2312";
+        /// <summary>
+        /// EUC-JP
+        /// </summary>
         public const String EUC_JP = "EUC-JP";
+        /// <summary>
+        /// UTF-8
+        /// </summary>
         public const String UTF8 = "UTF-8";
+        /// <summary>
+        /// ISO-8859-1
+        /// </summary>
         public const String ISO88591 = "ISO-8859-1";
+
+        static StringUtils()
+        {
+#if (NETFX_CORE || PORTABLE || NETSTANDARD)
+            PLATFORM_DEFAULT_ENCODING = UTF8;
+            PLATFORM_DEFAULT_ENCODING_T = Encoding.UTF8;
+#else
+            PLATFORM_DEFAULT_ENCODING = Encoding.Default.WebName.ToUpper();
+            PLATFORM_DEFAULT_ENCODING_T = Encoding.Default;
+#endif
+            SHIFT_JIS_ENCODING = CharacterSetECI.getEncoding(SHIFT_JIS);
+            GB2312_ENCODING = CharacterSetECI.getEncoding(GB2312);
+            EUC_JP_ENCODING = CharacterSetECI.getEncoding(EUC_JP);
+            ISO88591_ENCODING = CharacterSetECI.getEncoding(ISO88591);
+            ASSUME_SHIFT_JIS =
+                PLATFORM_DEFAULT_ENCODING_T.Equals(SHIFT_JIS_ENCODING) ||
+                PLATFORM_DEFAULT_ENCODING_T.Equals(EUC_JP_ENCODING);
+        }
 
         /// <summary>
         /// Guesses the encoding.
@@ -78,8 +116,9 @@ namespace ZXing.Common
         /// <param name="hints">decode hints if applicable</param>
         /// <returns>Charset of guessed encoding; at the moment will only guess one of:
         ///  {@link #SHIFT_JIS_CHARSET}, {@link StandardCharsets#UTF_8},
-        /// {@link StandardCharsets#ISO_8859_1}, or the platform default encoding if
-        /// none of these can possibly be correct</returns>
+        ///  {@link StandardCharsets#ISO_8859_1}, {@link StandardCharsets#UTF_16},
+        ///  or the platform default encoding if
+        ///  none of these can possibly be correct</returns>
         public static Encoding guessCharset(byte[] bytes, IDictionary<DecodeHintType, object> hints)
         {
             if (hints != null && hints.ContainsKey(DecodeHintType.CHARACTER_SET))
@@ -91,6 +130,14 @@ namespace ZXing.Common
                     if (encoding != null)
                         return encoding;
                 }
+            }
+
+            // First try UTF-16, assuming anything with its BOM is UTF-16
+            if (bytes.Length > 2 &&
+                ((bytes[0] == (byte)0xFE && bytes[1] == (byte)0xFF) ||
+                 (bytes[0] == (byte)0xFF && bytes[1] == (byte)0xFE)))
+            {
+                return Encoding.Unicode;
             }
 
             // For now, merely tries to distinguish ISO-8859-1, UTF-8 and Shift_JIS,
@@ -253,7 +300,7 @@ namespace ZXing.Common
                 return Encoding.UTF8;
             }
             // Easy -- if assuming Shift_JIS or >= 3 valid consecutive not-ascii characters (and no evidence it can't be), done
-            if (canBeShiftJIS && (ASSUME_SHIFT_JIS || sjisMaxKatakanaWordLength >= 3 || sjisMaxDoubleBytesWordLength >= 3))
+            if (canBeShiftJIS && (ASSUME_SHIFT_JIS || sjisMaxKatakanaWordLength >= 3 || sjisMaxDoubleBytesWordLength >= 3) && SHIFT_JIS_ENCODING != null)
             {
                 return SHIFT_JIS_ENCODING;
             }
@@ -262,18 +309,18 @@ namespace ZXing.Common
             //   - only two consecutive katakana chars in the whole text, or
             //   - at least 10% of bytes that could be "upper" not-alphanumeric Latin1,
             // - then we conclude Shift_JIS, else ISO-8859-1
-            if (canBeISO88591 && canBeShiftJIS)
+            if (canBeISO88591 && canBeShiftJIS && ISO88591_ENCODING != null && SHIFT_JIS_ENCODING != null)
             {
                 return (sjisMaxKatakanaWordLength == 2 && sjisKatakanaChars == 2) || isoHighOther * 10 >= length
                     ? SHIFT_JIS_ENCODING : ISO88591_ENCODING;
             }
 
             // Otherwise, try in order ISO-8859-1, Shift JIS, UTF-8 and fall back to default platform encoding
-            if (canBeISO88591)
+            if (canBeISO88591 && ISO88591_ENCODING != null)
             {
                 return ISO88591_ENCODING;
             }
-            if (canBeShiftJIS)
+            if (canBeShiftJIS && SHIFT_JIS_ENCODING != null)
             {
                 return SHIFT_JIS_ENCODING;
             }

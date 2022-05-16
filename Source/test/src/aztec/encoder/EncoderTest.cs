@@ -39,15 +39,11 @@ namespace ZXing.Aztec.Test
         private static readonly Encoding ISO_8859_1 = StringUtils.ISO88591_ENCODING;
 
         private static readonly Regex SPACES = new Regex("\\s+"
-#if !SILVERLIGHT
             , RegexOptions.Compiled
-#endif
         );
 
         private static readonly Regex DOTX = new Regex("[^.X]"
-#if !SILVERLIGHT
             , RegexOptions.Compiled
-#endif
         );
 
         private static readonly ResultPoint[] NO_POINTS = new ResultPoint[0];
@@ -329,7 +325,6 @@ namespace ZXing.Aztec.Test
                 823);
         }
 
-#if !SILVERLIGHT
         [Test]
         public void testHighLevelEncodeBinary()
         {
@@ -434,7 +429,6 @@ namespace ZXing.Aztec.Test
             // expect B/S(64)
             testHighLevelEncodeString(sbBuild.ToString(), 21 + 64 * 8);
         }
-#endif
 
         [Test]
         public void testHighLevelEncodePairs()
@@ -463,8 +457,10 @@ namespace ZXing.Aztec.Test
             //                          "...X. XXXXX ..X.. X....... ..X.XXX. ..X..... X.......");
         }
 
-        [Test]
-        public void testUserSpecifiedLayers()
+        [TestCase(33)]
+        [TestCase(-1)]
+        [ExpectedException(typeof(ArgumentException))]
+        public void doTestUserSpecifiedLayers(int userSpecifiedLayers)
         {
             var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             AztecCode aztec = Internal.Encoder.encode(alphabet, 25, -2);
@@ -475,23 +471,19 @@ namespace ZXing.Aztec.Test
             Assert.AreEqual(32, aztec.Layers);
             Assert.IsFalse(aztec.isCompact);
 
-            try
-            {
-                Internal.Encoder.encode(alphabet, 25, 33);
-                Assert.Fail("Encode should have failed.  No such thing as 33 layers");
-            }
-            catch (ArgumentException)
-            {
-            }
+            Internal.Encoder.encode(alphabet, 25, userSpecifiedLayers);
+        }
 
-            try
-            {
-                Internal.Encoder.encode(alphabet, 25, -1);
-                Assert.Fail("Encode should have failed.  Text can't fit in 1-layer compact");
-            }
-            catch (ArgumentException)
-            {
-            }
+        [Test]
+        [ExpectedException(typeof(ArgumentException))]
+        public void testBorderCompact4CaseFailed()
+        {
+            // Compact(4) con hold 608 bits of information, but at most 504 can be data.  Rest must
+            // be error correction
+            String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            // encodes as 26 * 5 * 4 = 520 bits of data
+            String alphabet4 = alphabet + alphabet + alphabet + alphabet;
+            Internal.Encoder.encode(alphabet4, 0, -4);
         }
 
         [Test]
@@ -502,14 +494,6 @@ namespace ZXing.Aztec.Test
             const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             // encodes as 26 * 5 * 4 = 520 bits of data
             const string alphabet4 = alphabet + alphabet + alphabet + alphabet;
-            try
-            {
-                Internal.Encoder.encode(alphabet4, 0, -4);
-                Assert.Fail("Encode should have failed.  Text can't fit in 1-layer compact");
-            }
-            catch (ArgumentException)
-            {
-            }
 
             // If we just try to encode it normally, it will go to a non-compact 4 layer
             AztecCode aztecCode = Internal.Encoder.encode(alphabet4, 0, Internal.Encoder.DEFAULT_AZTEC_LAYERS);

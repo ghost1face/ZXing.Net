@@ -207,6 +207,13 @@ namespace ZXing.Aztec.Internal
                             }
                             int n = readCode(correctedBits, index, 3);
                             index += 3;
+                            //  flush bytes, FLG changes state
+                            if (decodedBytes.Length > 0)
+                            {
+                                var byteArray = decodedBytes.ToArray();
+                                result.Append(encoding.GetString(byteArray, 0, byteArray.Length));
+                                decodedBytes.SetLength(0);
+                            }
                             switch (n)
                             {
                                 case 0:
@@ -215,14 +222,6 @@ namespace ZXing.Aztec.Internal
                                 case 7:
                                     throw new FormatException("FLG(7) is reserved and illegal");
                                 default:
-                                    // flush bytes before changing character set
-                                    if (decodedBytes.Length > 0)
-                                    {
-                                        var byteArray = decodedBytes.ToArray();
-                                        result.Append(encoding.GetString(byteArray, 0, byteArray.Length));
-                                        decodedBytes.SetLength(0);
-                                    }
-
                                     // ECI is decimal integer encoded as 1-6 codes in DIGIT mode
                                     int eci = 0;
                                     if (endIndex - index < 4 * n)
@@ -241,6 +240,10 @@ namespace ZXing.Aztec.Internal
                                     }
                                     CharacterSetECI charsetECI = CharacterSetECI.getCharacterSetECIByValue(eci);
                                     encoding = CharacterSetECI.getEncoding(charsetECI);
+                                    if (encoding == null)
+                                    {
+                                        throw new FormatException("Encoding for ECI " + eci + " can't be resolved");
+                                    }
                                     break;
                             }
                             // Go back to whatever mode we had been in
@@ -264,8 +267,8 @@ namespace ZXing.Aztec.Internal
                         else
                         {
                             // Though stored as a table of strings for convenience, codes actually represent 1 or 2 *bytes*.
-#if (PORTABLE || NETSTANDARD1_0 || NETSTANDARD1_1)
-                            var b = Encoding.GetEncoding(StringUtils.PLATFORM_DEFAULT_ENCODING).GetBytes(str);
+#if (PORTABLE || NETSTANDARD1_0 || NETSTANDARD1_1 || NETFX_CORE)
+                            var b = StringUtils.PLATFORM_DEFAULT_ENCODING_T.GetBytes(str);
 #else
 
                             var b = Encoding.ASCII.GetBytes(str);

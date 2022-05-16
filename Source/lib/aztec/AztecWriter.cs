@@ -28,24 +28,18 @@ namespace ZXing.Aztec
     /// </summary>
     public sealed class AztecWriter : Writer
     {
+        /// <summary>
+        /// default character set
+        /// </summary>
         public static readonly Encoding DEFAULT_CHARSET;
 
         static AztecWriter()
         {
-#if !(WindowsCE || SILVERLIGHT4 || SILVERLIGHT5 || NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE)
             DEFAULT_CHARSET = Encoding.GetEncoding(StringUtils.ISO88591);
-#elif WindowsCE
-         try
-         {
-            DEFAULT_CHARSET = Encoding.GetEncoding(StringUtils.ISO88591);
-         }
-         catch (PlatformNotSupportedException)
-         {
-            DEFAULT_CHARSET = Encoding.GetEncoding(1252);
-         }
 #else
-         // not fully correct but what else
-         DEFAULT_CHARSET = Encoding.GetEncoding(StringUtils.UTF8);
+            // not fully correct but what else
+            DEFAULT_CHARSET = Encoding.GetEncoding(StringUtils.UTF8);
 #endif
         }
 
