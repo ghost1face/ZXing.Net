@@ -19,9 +19,8 @@ using System.Collections.Generic;
 
 namespace ZXing.Common
 {
-    /// <summary> Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1
-    /// of ISO 18004.
-    /// 
+    /// <summary>
+    /// Encapsulates a Character Set ECI, according to "Extended Channel Interpretations" 5.3.1.1 of ISO 18004.
     /// </summary>
     /// <author>Sean Owen</author>
     public sealed class CharacterSetECI : ECI
@@ -30,6 +29,8 @@ namespace ZXing.Common
         internal static readonly IDictionary<string, CharacterSetECI> NAME_TO_ECI;
 
         private readonly String encodingName;
+        private System.Text.Encoding encoding;
+
         /// <summary>
         /// encoding name
         /// </summary>
@@ -42,27 +43,43 @@ namespace ZXing.Common
 
         }
 
+        /// <summary>
+        /// contains get encoding class;
+        /// can be set externally if override is necessary
+        /// </summary>
+        public System.Text.Encoding Encoding
+        {
+            get
+            {
+                return encoding ?? (encoding = getEncoding(this));
+            }
+            set
+            {
+                encoding = value;
+            }
+        }
+
         static CharacterSetECI()
         {
             VALUE_TO_ECI = new Dictionary<int, CharacterSetECI>();
             NAME_TO_ECI = new Dictionary<string, CharacterSetECI>();
             // TODO figure out if these values are even right!
-            addCharacterSet(0, "CP437");
-            addCharacterSet(1, new[] { "ISO-8859-1", "ISO8859_1" });
-            addCharacterSet(2, "CP437");
-            addCharacterSet(3, new[] { "ISO-8859-1", "ISO8859_1" });
-            addCharacterSet(4, new[] { "ISO-8859-2", "ISO8859_2" });
-            addCharacterSet(5, new[] { "ISO-8859-3", "ISO8859_3" });
-            addCharacterSet(6, new[] { "ISO-8859-4", "ISO8859_4" });
-            addCharacterSet(7, new[] { "ISO-8859-5", "ISO8859_5" });
-            addCharacterSet(8, new[] { "ISO-8859-6", "ISO8859_6" });
-            addCharacterSet(9, new[] { "ISO-8859-7", "ISO8859_7" });
+            addCharacterSet(0,  new[] { "CP437", "IBM437" });
+            addCharacterSet(1,  new[] { "ISO-8859-1", "ISO8859_1" });
+            addCharacterSet(2,  new[] { "CP437", "IBM437" });
+            addCharacterSet(3,  new[] { "ISO-8859-1", "ISO8859_1" });
+            addCharacterSet(4,  new[] { "ISO-8859-2", "ISO8859_2" });
+            addCharacterSet(5,  new[] { "ISO-8859-3", "ISO8859_3" });
+            addCharacterSet(6,  new[] { "ISO-8859-4", "ISO8859_4" });
+            addCharacterSet(7,  new[] { "ISO-8859-5", "ISO8859_5" });
+            addCharacterSet(8,  new[] { "ISO-8859-6", "ISO8859_6" });
+            addCharacterSet(9,  new[] { "ISO-8859-7", "ISO8859_7" });
             addCharacterSet(10, new[] { "ISO-8859-8", "ISO8859_8" });
             addCharacterSet(11, new[] { "ISO-8859-9", "ISO8859_9" });
-            addCharacterSet(12, new[] { "ISO-8859-4", "ISO-8859-10", "ISO8859_10" }); // use ISO-8859-4 because ISO-8859-16 isn't supported
-            addCharacterSet(13, new[] { "ISO-8859-11", "ISO8859_11" });
+            addCharacterSet(12, new[] { "ISO-8859-4", "ISO-8859-10", "ISO8859_10" }); // use ISO-8859-4 because ISO-8859-10 isn't supported
+            addCharacterSet(13, new[] { "ISO-8859-11", "ISO8859_11", "WINDOWS-874" });
             addCharacterSet(15, new[] { "ISO-8859-13", "ISO8859_13" });
-            addCharacterSet(16, new[] { "ISO-8859-1", "ISO-8859-14", "ISO8859_14" }); // use ISO-8859-1 because ISO-8859-16 isn't supported
+            addCharacterSet(16, new[] { "ISO-8859-1", "ISO-8859-14", "ISO8859_14" }); // use ISO-8859-1 because ISO-8859-14 isn't supported
             addCharacterSet(17, new[] { "ISO-8859-15", "ISO8859_15" });
             addCharacterSet(18, new[] { "ISO-8859-3", "ISO-8859-16", "ISO8859_16" }); // use ISO-8859-3 because ISO-8859-16 isn't supported
             addCharacterSet(20, new[] { "SJIS", "SHIFT_JIS", "ISO-2022-JP" });
@@ -70,7 +87,7 @@ namespace ZXing.Common
             addCharacterSet(22, new[] { "WINDOWS-1251", "CP1251" });
             addCharacterSet(23, new[] { "WINDOWS-1252", "CP1252" });
             addCharacterSet(24, new[] { "WINDOWS-1256", "CP1256" });
-            addCharacterSet(25, new[] { "UTF-16BE", "UNICODEBIG" });
+            addCharacterSet(25, new[] { "UTF-16BE", "UNICODEBIG", "UNICODEFFFE" });
             addCharacterSet(26, new[] { "UTF-8", "UTF8" });
             addCharacterSet(27, "US-ASCII");
             addCharacterSet(170, "US-ASCII");
@@ -89,7 +106,10 @@ namespace ZXing.Common
         {
             var eci = new CharacterSetECI(value, encodingName);
             VALUE_TO_ECI[value] = eci; // can't use valueOf
-            NAME_TO_ECI[encodingName] = eci;
+            if (!NAME_TO_ECI.ContainsKey(encodingName))
+            {
+                NAME_TO_ECI[encodingName] = eci;
+            }
         }
 
         private static void addCharacterSet(int value, String[] encodingNames)
@@ -98,7 +118,10 @@ namespace ZXing.Common
             VALUE_TO_ECI[value] = eci; // can't use valueOf
             foreach (string t in encodingNames)
             {
-                NAME_TO_ECI[t] = eci;
+                if (!NAME_TO_ECI.ContainsKey(t))
+                {
+                    NAME_TO_ECI[t] = eci;
+                }
             }
         }
 
@@ -142,7 +165,8 @@ namespace ZXing.Common
         {
             if (charsetECI == null)
                 return null;
-            return getEncoding(charsetECI.EncodingName);
+            // don't use property here because of StackOverflow
+            return charsetECI.encoding ?? (charsetECI.encoding = getEncoding(charsetECI.EncodingName));
         }
 
         /// <summary>
@@ -152,6 +176,9 @@ namespace ZXing.Common
         /// <returns></returns>
         public static System.Text.Encoding getEncoding(string encodingName)
         {
+            if (string.IsNullOrEmpty(encodingName))
+                return null;
+
             System.Text.Encoding encoding = null;
 
             try
@@ -178,6 +205,5 @@ namespace ZXing.Common
 
             return encoding;
         }
-
     }
 }

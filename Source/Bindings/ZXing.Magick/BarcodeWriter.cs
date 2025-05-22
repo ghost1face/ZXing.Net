@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-using ImageMagick;
-
-using ZXing.Magick.Rendering;
-
 namespace ZXing.Magick
 {
+    using ImageMagick;
+    using ImageMagick.Factories;
+
+    using ZXing.Magick.Rendering;
+
     /// <summary>
-    /// barcode writer which creates ImageSharp Image instances
+    /// barcode writer which creates Magick.NET Image instances
     /// </summary>
-    public class BarcodeWriter : ZXing.BarcodeWriter<IMagickImage<byte>>
+    public class BarcodeWriter<TQuantumType> : ZXing.BarcodeWriter<IMagickImage<TQuantumType>>
+        where TQuantumType : struct, System.IConvertible
     {
         /// <summary>
         /// contructor
         /// </summary>
-        public BarcodeWriter()
+        public BarcodeWriter(IMagickImageFactory<TQuantumType> imageFactory)
         {
-            Renderer = new MagickImageRenderer();
+            Renderer = new MagickImageRenderer<TQuantumType>(imageFactory);
         }
     }
 }

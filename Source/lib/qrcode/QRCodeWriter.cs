@@ -79,6 +79,7 @@ namespace ZXing.QrCode
 
             var errorCorrectionLevel = ErrorCorrectionLevel.L;
             int quietZone = QUIET_ZONE_SIZE;
+            var noPadding = false;
             if (hints != null)
             {
                 if (hints.ContainsKey(EncodeHintType.ERROR_CORRECTION))
@@ -118,21 +119,45 @@ namespace ZXing.QrCode
                         quietZone = Convert.ToInt32(quietZoneInt.ToString());
                     }
                 }
+                if (hints.ContainsKey(EncodeHintType.NO_PADDING))
+                {
+                    var noPaddingObj = hints[EncodeHintType.NO_PADDING];
+                    if (noPaddingObj != null)
+                    {
+                        bool.TryParse(noPaddingObj.ToString(), out noPadding);
+                    }
+                }
             }
 
             var code = Encoder.encode(contents, errorCorrectionLevel, hints);
-            return renderResult(code, width, height, quietZone);
+            return renderResult(code, width, height, quietZone, noPadding);
         }
 
-        // Note that the input matrix uses 0 == white, 1 == black, while the output matrix uses
-        // 0 == black, 255 == white (i.e. an 8 bit greyscale bitmap).
-        private static BitMatrix renderResult(QRCode code, int width, int height, int quietZone)
+        /// <summary>
+        /// Renders the given <see cref="QRCode"/> as a <see cref="BitMatrix"/>, scaling the
+        /// same to be compliant with the provided dimensions.
+        ///
+        /// <p>If no scaling is required, both {@code width} and {@code height}
+        /// arguments should be non-positive numbers.</p>
+        /// </summary>
+        /// <param name="code">{@code QRCode} to be adapted as a {@code BitMatrix}</param>
+        /// <param name="width">desired width for the {@code QRCode} (in pixel units)</param>
+        /// <param name="height">desired height for the {@code QRCode} (in pixel units)</param>
+        /// <param name="quietZone">the size of the QR quiet zone (in pixel units)</param>
+        /// <param name="noPadding"></param>
+        /// <returns>{@code BitMatrix} instance</returns>
+        /// <exception cref="ArgumentNullException">if code is null</exception>
+        /// <exception cref="InvalidOperationException">if code.Matrix is null</exception>
+        public static BitMatrix renderResult(QRCode code, int width, int height, int quietZone, bool noPadding)
         {
+            // Note that the input matrix uses 0 == white, 1 == black, while the output matrix uses
+            // 0 == black, 255 == white (i.e. an 8 bit greyscale bitmap).
+            if (code == null)
+                throw new ArgumentNullException(nameof(code));
             var input = code.Matrix;
             if (input == null)
-            {
                 throw new InvalidOperationException();
-            }
+
             int inputWidth = input.Width;
             int inputHeight = input.Height;
             int qrWidth = inputWidth + (quietZone << 1);
@@ -147,6 +172,14 @@ namespace ZXing.QrCode
             // handle all the padding from 100x100 (the actual QR) up to 200x160.
             int leftPadding = (outputWidth - (inputWidth * multiple)) / 2;
             int topPadding = (outputHeight - (inputHeight * multiple)) / 2;
+
+            if (noPadding)
+            {
+                outputHeight -= (topPadding - quietZone) * 2;
+                outputWidth -= (leftPadding - quietZone) * 2;
+                leftPadding = quietZone;
+                topPadding = quietZone;
+            }
 
             var output = new BitMatrix(outputWidth, outputHeight);
 

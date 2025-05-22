@@ -59,11 +59,17 @@ namespace ZXing.Multi.QrCode
                 var points = detectorResult.Points;
                 // If the code was mirrored: swap the bottom-left and the top-right points.
                 var data = decoderResult.Other as QRCodeDecoderMetaData;
-                if (data != null)
+                if (data != null && data.IsMirrored)
                 {
                     data.applyMirroredCorrection(points);
                 }
                 var result = new Result(decoderResult.Text, decoderResult.RawBytes, points, BarcodeFormat.QR_CODE);
+
+                if (data != null)
+                {
+                    result.putMetadata(ResultMetadataType.QR_MASK_PATTERN, data.DataMask);
+                }
+
                 var byteSegments = decoderResult.ByteSegments;
                 if (byteSegments != null)
                 {
@@ -79,6 +85,9 @@ namespace ZXing.Multi.QrCode
                     result.putMetadata(ResultMetadataType.STRUCTURED_APPEND_SEQUENCE, decoderResult.StructuredAppendSequenceNumber);
                     result.putMetadata(ResultMetadataType.STRUCTURED_APPEND_PARITY, decoderResult.StructuredAppendParity);
                 }
+                // Fix SYMBOLOGY_IDENTIFIER loss in QRCodeMultiReader
+                result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, "]Q" + decoderResult.SymbologyModifier);
+
                 results.Add(result);
             }
             if (results.Count == 0)

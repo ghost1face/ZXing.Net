@@ -29,6 +29,24 @@ namespace ZXing.OneD
         private readonly EAN13Writer subWriter = new EAN13Writer();
 
         /// <summary>
+        /// Gets the default margin.
+        /// </summary>
+        public int DefaultMargin
+        {
+            get
+            {
+                // CodaBar spec requires a side margin to be more than ten times wider than narrow space.
+                // This seems like a decent idea for a default for all formats.
+                return subWriter.DefaultMargin;
+            }
+            internal set
+            {
+                // mainly for test cases
+                subWriter.DefaultMargin = value;
+            }
+        }
+
+        /// <summary>
         /// Encode a barcode using the default settings.
         /// </summary>
         /// <param name="contents">The contents to encode in the barcode</param>
@@ -62,6 +80,11 @@ namespace ZXing.OneD
             if (format != BarcodeFormat.UPC_A)
             {
                 throw new ArgumentException("Can only encode UPC-A, but got " + format);
+            }
+            int length = contents.Length;
+            if (length != 11 && length != 12)
+            {
+                throw new ArgumentException("Requested contents should be 11 (without checksum digit) or 12 digits long, but got " + length);
             }
             // Transform a UPC-A code into the equivalent EAN-13 code and write it that way
             return subWriter.encode('0' + contents, BarcodeFormat.EAN_13, width, height, hints);

@@ -70,7 +70,13 @@ namespace ZXing.QrCode.Internal
                 return null;
 
             var result = decode(parser, hints);
-            if (result == null)
+
+            if (result != null)
+            {
+                result.Other = new QRCodeDecoderMetaData(false, parser.readFormatInformation().DataMask);
+                return result;
+            }
+            else
             {
                 // Revert the bit matrix
                 parser.remask();
@@ -101,12 +107,11 @@ namespace ZXing.QrCode.Internal
 
                 if (result != null)
                 {
-                    // Success! Notify the caller that the code was mirrored.
-                    result.Other = new QRCodeDecoderMetaData(true);
+                    // Success! Notify the caller that the QRCode was mirrored
+                    result.Other = new QRCodeDecoderMetaData(true, formatinfo.DataMask);
                 }
+                return result;
             }
-
-            return result;
         }
 
         private DecoderResult decode(BitMatrixParser parser, IDictionary<DecodeHintType, object> hints)
@@ -136,12 +141,15 @@ namespace ZXing.QrCode.Internal
             int resultOffset = 0;
 
             // Error-correct and copy data blocks together into a stream of bytes
+            int errorsCorrected = 0;
             foreach (var dataBlock in dataBlocks)
             {
                 byte[] codewordBytes = dataBlock.Codewords;
                 int numDataCodewords = dataBlock.NumDataCodewords;
-                if (!correctErrors(codewordBytes, numDataCodewords))
+                var errorsCorrectedLastRun = 0;
+                if (!correctErrors(codewordBytes, numDataCodewords, out errorsCorrectedLastRun))
                     return null;
+                errorsCorrected += errorsCorrectedLastRun;
                 for (int i = 0; i < numDataCodewords; i++)
                 {
                     resultBytes[resultOffset++] = codewordBytes[i];
@@ -149,7 +157,9 @@ namespace ZXing.QrCode.Internal
             }
 
             // Decode the contents of that stream of bytes
-            return DecodedBitStreamParser.decode(resultBytes, version, ecLevel, hints);
+            var result = DecodedBitStreamParser.decode(resultBytes, version, ecLevel, hints);
+            result.ErrorsCorrected = errorsCorrected;
+            return result;
         }
 
         /// <summary>
@@ -158,8 +168,9 @@ namespace ZXing.QrCode.Internal
         /// </summary>
         /// <param name="codewordBytes">data and error correction codewords</param>
         /// <param name="numDataCodewords">number of codewords that are data bytes</param>
+        /// <param name="errorsCorrected">the number of errors corrected</param>
         /// <returns></returns>
-        private bool correctErrors(byte[] codewordBytes, int numDataCodewords)
+        private bool correctErrors(byte[] codewordBytes, int numDataCodewords, out int errorsCorrected)
         {
             int numCodewords = codewordBytes.Length;
             // First read into an array of ints
@@ -170,7 +181,7 @@ namespace ZXing.QrCode.Internal
             }
             int numECCodewords = codewordBytes.Length - numDataCodewords;
 
-            if (!rsDecoder.decode(codewordsInts, numECCodewords))
+            if (!rsDecoder.decodeWithECCount(codewordsInts, numECCodewords, out errorsCorrected))
                 return false;
 
             // Copy back into array of bytes -- only need to worry about the bytes that were data

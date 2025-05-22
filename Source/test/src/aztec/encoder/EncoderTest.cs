@@ -129,7 +129,7 @@ namespace ZXing.Aztec.Test
         }
 
         [TestCase("Espa\u00F1ol", null, 25, true, 1, false)] // Without ECI (implicit ISO-8859-1)
-        [TestCase("Espa\u00F1ol", "ISO-8859-1", 25, true, 2, false)] // Explicit ISO-8859-1
+        [TestCase("Espa\u00F1ol", "ISO-8859-1", 25, true, 1, false)] // Explicit ISO-8859-1
         [TestCase("Espa\u00F1ol", "ISO-8859-1", 25, true, 1, true)] // Explicit ISO-8859-1, disable ECI segment
         [TestCase("\u20AC 1 sample data.", "WINDOWS-1252", 25, true, 2, false)] // Standard ISO-8859-1 cannot encode Euro symbol; Windows-1252 superset can
         [TestCase("\u20AC 1 sample data.", "ISO-8859-15", 25, true, 2, false)]
@@ -459,7 +459,6 @@ namespace ZXing.Aztec.Test
 
         [TestCase(33)]
         [TestCase(-1)]
-        [ExpectedException(typeof(ArgumentException))]
         public void doTestUserSpecifiedLayers(int userSpecifiedLayers)
         {
             var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -471,11 +470,10 @@ namespace ZXing.Aztec.Test
             Assert.AreEqual(32, aztec.Layers);
             Assert.IsFalse(aztec.isCompact);
 
-            Internal.Encoder.encode(alphabet, 25, userSpecifiedLayers);
+            Assert.Throws<ArgumentException>(() => Internal.Encoder.encode(alphabet, 25, userSpecifiedLayers));
         }
 
         [Test]
-        [ExpectedException(typeof(ArgumentException))]
         public void testBorderCompact4CaseFailed()
         {
             // Compact(4) con hold 608 bits of information, but at most 504 can be data.  Rest must
@@ -483,7 +481,7 @@ namespace ZXing.Aztec.Test
             String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             // encodes as 26 * 5 * 4 = 520 bits of data
             String alphabet4 = alphabet + alphabet + alphabet + alphabet;
-            Internal.Encoder.encode(alphabet4, 0, -4);
+            Assert.Throws<ArgumentException>(() => Internal.Encoder.encode(alphabet4, 0, -4));
         }
 
         [Test]
@@ -525,7 +523,7 @@ namespace ZXing.Aztec.Test
             Assert.AreEqual(layers, aztec.Layers, "Unexpected nr. of layers");
             BitMatrix matrix = aztec.Matrix;
             AztecDetectorResult r =
-                new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers);
+                new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers, 0);
             DecoderResult res = new Internal.Decoder().decode(r);
             Assert.AreEqual(data, res.Text);
             // Check error correction by introducing a few minor errors
@@ -534,7 +532,7 @@ namespace ZXing.Aztec.Test
             matrix.flip(random.Next(matrix.Width), matrix.Height - 2 + random.Next(2));
             matrix.flip(random.Next(2), random.Next(matrix.Height));
             matrix.flip(matrix.Width - 2 + random.Next(2), random.Next(matrix.Height));
-            r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers);
+            r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers, 0);
             res = new Internal.Decoder().decode(r);
             Assert.AreEqual(data, res.Text);
         }
@@ -562,7 +560,7 @@ namespace ZXing.Aztec.Test
             Assert.AreEqual(layers, aztec.Layers, "Unexpected nr. of layers");
             var matrix2 = aztec.Matrix;
             Assert.AreEqual(matrix, matrix2);
-            var r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers);
+            var r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers, 0);
             var res = new Internal.Decoder().decode(r);
             Assert.AreEqual(data, res.Text);
             // Check error correction by introducing up to eccPercent/2 errors
@@ -579,7 +577,7 @@ namespace ZXing.Aztec.Test
                     : matrix.Height - 1 - random.Next(aztec.Layers * 2);
                 matrix.flip(x, y);
             }
-            r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers);
+            r = new AztecDetectorResult(matrix, NO_POINTS, aztec.isCompact, aztec.CodeWords, aztec.Layers, 0);
             res = new Internal.Decoder().decode(r);
             Assert.AreEqual(data, res.Text);
         }

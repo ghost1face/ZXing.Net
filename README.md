@@ -20,13 +20,13 @@ UPC-A, EAN-8, EAN-13, Code 39, Code 128, ITF, Codabar, Plessey, MSI, QR Code, PD
 
 #### Assemblies are available for the following platforms:
 
-* .Net 2.0, 3.5, 4.0, 4.5, 4.6 and 4.7
+* .Net 2.0, 3.5, 4.x, 5.0, 6.0, 7.0
 * Windows RT Class Library and Runtime Components (winmd)
 * .NET Standard / .NET Core / UWP
 * Portable Class Library
 * Unity3D (.Net 2.0 built without System.Drawing reference)
 * Xamarin.Android (formerly Mono for Android)
-* bindings to CoreCompat.System.Drawing, ImageSharp, SkiaSharp, OpenCVSharp, Magick, Kinect V1 and V2
+* bindings to Windows.Compatibility, CoreCompat.System.Drawing, ImageSharp, SkiaSharp, OpenCVSharp, Magick, Kinect V1 and V2, EmguCV, Eto.Forms, ZKWeb.System.Drawing
 * support COM interop, can be used with VBA
 
 #### obsolete Assemblies are available for the following platforms up to release 0.16:
@@ -66,11 +66,13 @@ Obsolete examples are available for the following platforms in separate branches
 * Windows Phone demo (demonstrates decoding of static images and from a camera)
 
 #### small example decoding a barcode inside a bitmap (.Net 2.0/3.5/4.x)
+The following example works with the classic .Net framework until version 4.8.1:
+
 ```csharp
 // create a barcode reader instance
 IBarcodeReader reader = new BarcodeReader();
 // load a bitmap
-var barcodeBitmap = (Bitmap)Image.LoadFrom("C:\\sample-barcode-image.png");
+var barcodeBitmap = (Bitmap)Image.FromFile("C:\\sample-barcode-image.png");
 // detect and decode the barcode inside the bitmap
 var result = reader.Decode(barcodeBitmap);
 // do something with the result
@@ -78,6 +80,33 @@ if (result != null)
 {
    txtDecoderType.Text = result.BarcodeFormat.ToString();
    txtDecoderContent.Text = result.Text;
+}
+```
+#### important notice for .Net Standard and .Net 5.0 and above target platforms
+If you want to try the sample code above within a project which target .Net Standard or .Net 5.0 or higher then you have to add one of the
+additional nuget package for a specific image library: https://www.nuget.org/packages?q=ZXing.Bindings
+The main package of ZXing.Net for such platforms only contains the core classes which are not dependent on a specific assembly for image formats.
+
+```csharp
+// example shows a simple decoding snippet as a .Net 8.0 console appliation which uses the ZXing.Windows.Compatibility package
+using System.Drawing;
+using ZXing.Windows.Compatibility;
+
+// create a barcode reader instance
+var reader = new BarcodeReader();
+// load a bitmap
+var barcodeBitmap = (Bitmap)Image.FromFile("C:\\sample-barcode-image.png");
+// detect and decode the barcode inside the bitmap
+var result = reader.Decode(barcodeBitmap);
+// do something with the result
+if (result != null)
+{
+    Console.WriteLine(result.BarcodeFormat.ToString());
+    Console.WriteLine(result.Text);
+}
+else
+{
+    Console.WriteLine("No barcode found");
 }
 ```
 ## Help wanted

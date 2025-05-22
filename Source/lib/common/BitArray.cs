@@ -24,6 +24,9 @@ namespace ZXing.Common
     /// <author>Sean Owen</author>
     public sealed class BitArray
     {
+        private static int[] EMPTY_BITS = { };
+        private static float LOAD_FACTOR = 0.75f;
+
         private int[] bits;
         private int size;
 
@@ -73,7 +76,7 @@ namespace ZXing.Common
         public BitArray()
         {
             this.size = 0;
-            this.bits = new int[1];
+            this.bits = EMPTY_BITS;
         }
 
         /// <summary>
@@ -97,11 +100,11 @@ namespace ZXing.Common
             this.size = size;
         }
 
-        private void ensureCapacity(int size)
+        private void ensureCapacity(int newSize)
         {
-            if (size > bits.Length << 5)
+            if (newSize > bits.Length << 5)
             {
-                int[] newBits = makeArray(size);
+                int[] newBits = makeArray((int)Math.Ceiling(newSize / LOAD_FACTOR));
                 System.Array.Copy(bits, 0, newBits, 0, bits.Length);
                 bits = newBits;
             }
@@ -186,17 +189,12 @@ namespace ZXing.Common
             return result > size ? size : result;
         }
 
-        /// <summary> Sets a block of 32 bits, starting at bit i.
-        /// 
-        /// </summary>
-        /// <param name="i">first bit to set
-        /// </param>
-        /// <param name="newBits">the new value of the next 32 bits. Note again that the least-significant bit
-        /// corresponds to bit i, the next-least-significant to i+1, and so on.
-        /// </param>
-        public void setBulk(int i, int newBits)
+        /// <summary> Sets a block of 32 bits, starting at bit i.</summary>
+        /// <param name="blockIndex">index position of the new 32 bit block</param>
+        /// <param name="newBits">the new value of the next 32 bits.</param>
+        public void setBulk(int blockIndex, int newBits)
         {
-            bits[i >> 5] = newBits;
+            bits[blockIndex] = newBits;
         }
 
         /// <summary>
@@ -350,7 +348,12 @@ namespace ZXing.Common
             {
                 throw new ArgumentException("Sizes don't match");
             }
-            for (int i = 0; i < bits.Length; i++)
+
+            var numberOfInts = bits.Length;
+            if (other.bits.Length < numberOfInts)
+                numberOfInts = other.bits.Length;
+
+            for (int i = 0; i < numberOfInts; i++)
             {
                 // The last int could be incomplete (i.e. not have 32 bits in
                 // it) but there is no problem since 0 XOR 0 == 0.

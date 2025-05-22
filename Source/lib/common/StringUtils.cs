@@ -52,6 +52,14 @@ namespace ZXing.Common
         /// </summary>
         public static readonly Encoding ISO88591_ENCODING;
         private static readonly bool ASSUME_SHIFT_JIS;
+        /// <summary>
+        /// JIS_IS is supported or not
+        /// </summary>
+        public static readonly bool JIS_IS_SUPPORTED;
+        /// <summary>
+        /// EUC_JP is supported or not
+        /// </summary>
+        public static readonly bool EUC_JP_IS_SUPPORTED;
 
         // Retained for ABI compatibility with earlier versions
         /// <summary>
@@ -77,7 +85,7 @@ namespace ZXing.Common
 
         static StringUtils()
         {
-#if (NETFX_CORE || PORTABLE || NETSTANDARD)
+#if (NETFX_CORE || PORTABLE || NETSTANDARD1_0 || NETSTANDARD1_1 || NETSTANDARD1_3)
             PLATFORM_DEFAULT_ENCODING = UTF8;
             PLATFORM_DEFAULT_ENCODING_T = Encoding.UTF8;
 #else
@@ -85,12 +93,23 @@ namespace ZXing.Common
             PLATFORM_DEFAULT_ENCODING_T = Encoding.Default;
 #endif
             SHIFT_JIS_ENCODING = CharacterSetECI.getEncoding(SHIFT_JIS);
-            GB2312_ENCODING = CharacterSetECI.getEncoding(GB2312);
-            EUC_JP_ENCODING = CharacterSetECI.getEncoding(EUC_JP);
-            ISO88591_ENCODING = CharacterSetECI.getEncoding(ISO88591);
-            ASSUME_SHIFT_JIS =
-                PLATFORM_DEFAULT_ENCODING_T.Equals(SHIFT_JIS_ENCODING) ||
-                PLATFORM_DEFAULT_ENCODING_T.Equals(EUC_JP_ENCODING);
+            GB2312_ENCODING = CharacterSetECI.getEncoding(GB2312) ?? PLATFORM_DEFAULT_ENCODING_T;
+            EUC_JP_ENCODING = CharacterSetECI.getEncoding(EUC_JP) ?? PLATFORM_DEFAULT_ENCODING_T;
+            ISO88591_ENCODING = CharacterSetECI.getEncoding(ISO88591) ?? PLATFORM_DEFAULT_ENCODING_T;
+            JIS_IS_SUPPORTED = true;
+            if (SHIFT_JIS_ENCODING == null)
+            {
+                SHIFT_JIS_ENCODING = PLATFORM_DEFAULT_ENCODING_T;
+                JIS_IS_SUPPORTED = false;
+            }
+            EUC_JP_IS_SUPPORTED = true;
+            if (EUC_JP_ENCODING == null)
+            {
+                EUC_JP_ENCODING = PLATFORM_DEFAULT_ENCODING_T;
+                EUC_JP_IS_SUPPORTED = false;
+            }
+            ASSUME_SHIFT_JIS = (JIS_IS_SUPPORTED && PLATFORM_DEFAULT_ENCODING_T.WebName.Equals(SHIFT_JIS_ENCODING.WebName))
+                || (EUC_JP_IS_SUPPORTED && PLATFORM_DEFAULT_ENCODING_T.WebName.Equals(EUC_JP_ENCODING.WebName));
         }
 
         /// <summary>
@@ -144,7 +163,7 @@ namespace ZXing.Common
             // which should be by far the most common encodings.
             int length = bytes.Length;
             bool canBeISO88591 = true;
-            bool canBeShiftJIS = true;
+            bool canBeShiftJIS = JIS_IS_SUPPORTED;
             bool canBeUTF8 = true;
             int utf8BytesLeft = 0;
             int utf2BytesChars = 0;
